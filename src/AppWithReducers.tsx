@@ -1,10 +1,18 @@
-import React, {useState} from 'react';
+import React, {useReducer, useState} from 'react';
 import './App.css';
 import {TaskType, Todolist} from "./Todolist";
 import {v1} from "uuid";
 import {AddItemForm} from "./component/AddItemForm";
 import {AppBar, Button, Container, Grid, IconButton, Paper, Toolbar, Typography} from "@mui/material";
 import RouterApp from "./router/RouterApp";
+import {
+    addTodolistAC,
+    changeTodolistFilterAC,
+    changeTodolistTitleAC,
+    removeTodolistAC,
+    todolistsReducer
+} from "./state/todolists/todolists-reduser";
+import {addTaskAC, changeStatusAC, changeTaskTitleAC, removeTaskAC, tasksReducer} from "./state/tasks/tasks-reduser";
 
 
 export type FilterType = "all" | "completed" | "active"
@@ -21,79 +29,16 @@ function MenuIcon() {
     return null;
 }
 
-function App() {
-    function removeTask(id: string, todolistId: string) {
-        let tasks = tasksObj[todolistId]
-        let filteredTask = tasks.filter((t) => t.id !== id)
-        tasksObj[todolistId] = filteredTask
-        setTasksObj({...tasksObj})
-    }
-    function addTask(title: string, todolistId: string) {
-        let task = {id: v1(), title: title, isDone: false}
-        let tasks = tasksObj[todolistId]
-        let newTasks = [task, ...tasks]
-        tasksObj[todolistId] = newTasks
-
-        setTasksObj({...tasksObj})
-    }
-    function changeStatus(taskId: string, isDone: boolean, todolistId: string) {
-        //дотанем нужный массив по todolistId
-        let tasks = tasksObj[todolistId]
-        //найдем нужную таску
-        let task = tasks.find(t => t.id === taskId)
-        // изменим таску если она нашлась
-        if (task) {
-            task.isDone = isDone
-            // засетаем в стейт копиюобьекта, чтобы реакт отреагировал перерисовкой
-            setTasksObj({...tasksObj})
-        }
-    }
-    function changeTaskTitle(taskId: string, newTitle: string, todolistId: string) {
-        //дотанем нужный массив по todolistId
-        let tasks = tasksObj[todolistId]
-        //найдем нужную таску
-        let task = tasks.find(t => t.id === taskId)
-        // изменим таску если она нашлась
-        if (task) {
-            task.title = newTitle
-            // засетаем в стейт копиюобьекта, чтобы реакт отреагировал перерисовкой
-            setTasksObj({...tasksObj})
-        }
-    }
-
-    
-    function changeFilter(value: FilterType, id: string) {
-        let todolist = todolists.find(tl => tl.id === id)
-        if (todolist) {
-            todolist.filter = value
-            setTodolists([...todolists])
-        }
-    }
+function AppWithReducers() {
 
     let todolistId1 = v1()
     let todolistId2 = v1()
 
-    let [todolists, setTodolists] = useState<Array<TodolistType>>([
+    let [todolists, dispatchTodolistsReducer] = useReducer(todolistsReducer, [
         {id: todolistId1, title: "What to learn", filter: "all"},
-        {id: todolistId2, title: "What to by", filter: "all"},
+        {id: todolistId2, title: "What to by", filter: "all"}
     ])
-    let removeTodolist = (id: string) => {
-        let filteredTodolist = todolists.filter(tl => tl.id !== id)
-        setTodolists(filteredTodolist)
-
-        delete tasksObj[todolistId1]
-        setTasksObj({...tasksObj})
-    }
-
-    function changeTodolistTitle(id: string, title: string) {
-        const todolist = todolists.find(tl => tl.id === id)
-        if (todolist) {
-            todolist.title = title
-            setTodolists([...todolists])
-        }
-    }
-
-    let [tasksObj, setTasksObj] = useState<TaskStateType>({
+    let [tasksObj, dispatchTaskReducer] = useReducer(tasksReducer, {
         [todolistId1]: [
             {id: v1(), title: "CSS", isDone: true},
             {id: v1(), title: "JS", isDone: true},
@@ -108,26 +53,49 @@ function App() {
         ]
     })
 
-    function addTodolist(title: string) {
-        let todolist: TodolistType = {
-            id: v1(),
-            title: title,
-            filter: 'all'
 
-        }
-        setTodolists([todolist, ...todolists])
-        setTasksObj({...tasksObj, [todolist.id]: []})
+    function removeTask(id: string, todolistId: string) {
+        const action = removeTaskAC(id, todolistId)
+        dispatchTaskReducer(action)
+    }
+
+    function addTask(title: string, todolistId: string) {
+        dispatchTodolistsReducer(addTaskAC(title, todolistId))
+    }
+
+    function changeStatus(id: string, isDone: boolean, todolistId: string) {
+        dispatchTaskReducer(changeStatusAC(id, isDone, todolistId))
+    }
+
+    function changeTaskTitle(id: string, newTitle: string, todolistId: string) {
+        dispatchTaskReducer(changeTaskTitleAC(id, newTitle, todolistId))
+    }
+
+    function changeFilter(value: FilterType, id: string) {
+        dispatchTodolistsReducer(changeTodolistFilterAC(value, id))
+    }
+
+    let removeTodolist = (id: string) => {
+        const action = removeTodolistAC(id)
+        dispatchTodolistsReducer(action)
+        dispatchTaskReducer(action)
+    }
+
+    function changeTodolistTitle(id: string, title: string) {
+        dispatchTodolistsReducer(changeTodolistTitleAC(id, title))
+    }
+
+    function addTodolist(title: string) {
+        const action = addTodolistAC(title)
+        dispatchTaskReducer(action)
+        dispatchTodolistsReducer(action)
     }
 
 
     return (
         <div className="App">
 
-        <RouterApp/>
-
-
-
-
+            <RouterApp/>
             <AppBar position="static">
                 <Toolbar>
                     <IconButton edge="start" color="inherit" aria-label="menu">
@@ -180,4 +148,4 @@ function App() {
     );
 }
 
-export default App;
+export default AppWithReducers;
